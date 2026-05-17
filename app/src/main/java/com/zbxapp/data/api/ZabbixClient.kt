@@ -212,7 +212,7 @@ class ZabbixClient(
         val defaultJson = Json {
             ignoreUnknownKeys = true
             coerceInputValues = true
-            encodeDefaults = false
+            encodeDefaults = true
             explicitNulls = false
         }
 

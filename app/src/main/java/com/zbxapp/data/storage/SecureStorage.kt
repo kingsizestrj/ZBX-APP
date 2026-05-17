@@ -11,9 +11,10 @@ data class ServerConfig(
     val baseUrl: String,
     val useBearerAuth: Boolean,
 ) {
-    val apiUrl: String = buildString {
-        append(baseUrl.trimEnd('/'))
-        append("/api_jsonrpc.php")
+    val apiUrl: String = run {
+        val trimmed = baseUrl.trimEnd('/')
+        if (trimmed.endsWith("/api_jsonrpc.php", ignoreCase = true)) trimmed
+        else "$trimmed/api_jsonrpc.php"
     }
 }
 
