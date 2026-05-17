@@ -18,7 +18,7 @@ abstract class ZbxDatabase : RoomDatabase() {
             ZbxDatabase::class.java,
             DB_NAME,
         )
-            .fallbackToDestructiveMigration()
+            .addMigrations(*ALL_MIGRATIONS)
             .build()
     }
 }

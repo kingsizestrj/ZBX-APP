@@ -1,5 +1,6 @@
 package com.zbxapp.data.cache
 
+import android.util.Base64
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 import com.zbxapp.data.api.models.ZbxProblem
@@ -20,12 +21,17 @@ data class ProblemEntity(
     val suppressed: String,
     val hostName: String,
     val opdata: String,
-    /** "tag1=v1;tag2=v2" — empty when no tags. */
+    /**
+     * Flattened tags. Each tag is encoded as "base64(tag)=base64(value)" and
+     * tags are joined with ";". Base64 ensures the separators ('=' and ';')
+     * inside tag/value content cannot corrupt the round-trip.
+     */
     val tagsFlat: String,
 )
 
 private const val TAGS_SEPARATOR = ";"
 private const val TAG_KV_SEPARATOR = "="
+private const val B64_FLAGS = Base64.NO_WRAP or Base64.NO_PADDING or Base64.URL_SAFE
 
 fun ZbxProblem.toEntity(): ProblemEntity = ProblemEntity(
     eventid = eventid,
@@ -34,7 +40,9 @@ fun ZbxProblem.toEntity(): ProblemEntity = ProblemEntity(
     clock = clock.toLongOrNull() ?: 0L,
     acknowledged = acknowledged,
     suppressed = suppressed,
-    hostName = hosts.firstOrNull()?.name ?: hosts.firstOrNull()?.host ?: "",
+    hostName = hosts.firstOrNull()?.name?.takeIf { it.isNotBlank() }
+        ?: hosts.firstOrNull()?.host
+        ?: "",
     opdata = opdata,
     tagsFlat = tags.joinToString(TAGS_SEPARATOR) { encodeTag(it) },
 )
@@ -53,18 +61,27 @@ fun ProblemEntity.toDomain(): ZbxProblem = ZbxProblem(
     tags = decodeTags(tagsFlat),
 )
 
-private fun encodeTag(tag: ZbxTag): String {
-    val safeTag = tag.tag.replace(TAGS_SEPARATOR, " ").replace(TAG_KV_SEPARATOR, " ")
-    val safeVal = tag.value.replace(TAGS_SEPARATOR, " ")
-    return "$safeTag$TAG_KV_SEPARATOR$safeVal"
+private fun b64Encode(value: String): String =
+    Base64.encodeToString(value.toByteArray(Charsets.UTF_8), B64_FLAGS)
+
+private fun b64Decode(value: String): String = try {
+    String(Base64.decode(value, B64_FLAGS), Charsets.UTF_8)
+} catch (_: IllegalArgumentException) {
+    ""
 }
+
+private fun encodeTag(tag: ZbxTag): String =
+    "${b64Encode(tag.tag)}$TAG_KV_SEPARATOR${b64Encode(tag.value)}"
 
 private fun decodeTags(flat: String): List<ZbxTag> {
     if (flat.isBlank()) return emptyList()
     return flat.split(TAGS_SEPARATOR).mapNotNull { entry ->
         if (entry.isBlank()) return@mapNotNull null
         val idx = entry.indexOf(TAG_KV_SEPARATOR)
-        if (idx < 0) ZbxTag(tag = entry, value = "")
-        else ZbxTag(tag = entry.substring(0, idx), value = entry.substring(idx + 1))
+        if (idx < 0) ZbxTag(tag = b64Decode(entry), value = "")
+        else ZbxTag(
+            tag = b64Decode(entry.substring(0, idx)),
+            value = b64Decode(entry.substring(idx + 1)),
+        )
     }
 }

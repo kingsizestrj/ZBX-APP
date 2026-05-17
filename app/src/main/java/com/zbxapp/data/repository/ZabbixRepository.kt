@@ -11,9 +11,12 @@ import com.zbxapp.data.cache.toDomain
 import com.zbxapp.data.cache.toEntity
 import com.zbxapp.data.storage.SecureStorage
 import com.zbxapp.data.storage.ServerConfig
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.sync.Mutex
+import kotlinx.coroutines.sync.withLock
 
 /**
  * Façade over [ZabbixClient] and [SecureStorage]. Re-authenticates transparently
@@ -30,7 +33,9 @@ class ZabbixRepository(
 
     val authState: StateFlow<com.zbxapp.data.storage.AuthState> = storage.state
 
-    suspend fun probeAndLogin(baseUrl: String, username: String, password: String): Result<Unit> = runCatching {
+    private val refreshMutex = Mutex()
+
+    suspend fun probeAndLogin(baseUrl: String, username: String, password: String): Result<Unit> = runCatchingCoop {
         // First, detect version on a temporary config (assume bearer; apiinfo.version doesn't need auth anyway)
         val probeServer = ServerConfig(baseUrl, useBearerAuth = true)
         val version = client.getApiVersion(probeServer)
@@ -48,7 +53,13 @@ class ZabbixRepository(
         val s = storage.state.value
         val server = s.server ?: return
         val token = s.token ?: return
-        runCatching { client.logout(server, token) }
+        try {
+            client.logout(server, token)
+        } catch (e: CancellationException) {
+            throw e
+        } catch (_: Throwable) {
+            // best-effort: clear regardless
+        }
         storage.clearAll()
     }
 
@@ -72,13 +83,21 @@ class ZabbixRepository(
 
     /**
      * Observe the cached problems list. UI can subscribe to this and render the
-     * last-known list immediately, while [fetchProblems] runs in the background.
-     *
-     * TODO(integration): ProblemsViewModel should switch to observing this flow as
-     * its source of truth and trigger fetchProblems() as a refresh action.
+     * last-known list immediately, while [refreshProblems] runs in the background.
      */
     fun observeCachedProblems(): Flow<List<ZbxProblem>> =
         problemDao.observeAll().map { rows -> rows.map { it.toDomain() } }
+
+    /** Convenience alias matching the read/write pattern in ProblemsViewModel. */
+    suspend fun refreshProblems(
+        minSeverity: Int? = null,
+        limit: Int = 200,
+        includeSuppressed: Boolean? = null,
+    ): Result<List<ZbxProblem>> = fetchProblems(minSeverity, limit, includeSuppressed)
+
+    suspend fun getProblem(eventId: String): Result<ZbxProblem?> = call { server, token ->
+        client.getProblemByEventId(server, token, eventId)
+    }
 
     suspend fun fetchTriggers(triggerIds: List<String>): Result<List<ZbxTrigger>> = call { server, token ->
         client.getTriggers(server, token, triggerIds)
@@ -105,28 +124,48 @@ class ZabbixRepository(
      * Run [block] with current server + token. If the call fails because the token is
      * invalid, re-login (using stored credentials) and retry once.
      */
-    private suspend fun <T> call(block: suspend (ServerConfig, String) -> T): Result<T> = runCatching {
+    private suspend fun <T> call(block: suspend (ServerConfig, String) -> T): Result<T> = runCatchingCoop {
         val state = storage.state.value
         val server = state.server ?: error("Servidor não configurado")
-        var token = state.token ?: refreshToken()
+        var token = state.token ?: refreshToken(server, expectedStaleToken = null)
         try {
             block(server, token)
         } catch (e: ZabbixApiException) {
             if (isAuthError(e)) {
-                token = refreshToken()
+                token = refreshToken(server, expectedStaleToken = token)
                 block(server, token)
             } else throw e
         }
     }
 
-    private suspend fun refreshToken(): String {
+    /**
+     * Refresh the auth token. Concurrent callers wait on [refreshMutex]; if another
+     * caller already refreshed the token while we waited (current token differs from
+     * [expectedStaleToken]) we just return the current token to avoid stampedes.
+     */
+    private suspend fun refreshToken(
+        server: ServerConfig,
+        expectedStaleToken: String?,
+    ): String = refreshMutex.withLock {
+        val current = storage.state.value.token
+        if (expectedStaleToken != null && current != null && current != expectedStaleToken) {
+            return@withLock current
+        }
         val s = storage.state.value
-        val server = s.server ?: error("Servidor não configurado")
         val user = s.username ?: error("Credenciais ausentes")
         val pwd = s.password ?: error("Credenciais ausentes")
         val newToken = client.login(server, user, pwd)
         storage.saveToken(newToken)
-        return newToken
+        newToken
+    }
+
+    /** [runCatching] that does not swallow coroutine cancellation. */
+    private suspend fun <T> runCatchingCoop(block: suspend () -> T): Result<T> = try {
+        Result.success(block())
+    } catch (e: CancellationException) {
+        throw e
+    } catch (t: Throwable) {
+        Result.failure(t)
     }
 
     private fun isAuthError(e: ZabbixApiException): Boolean {

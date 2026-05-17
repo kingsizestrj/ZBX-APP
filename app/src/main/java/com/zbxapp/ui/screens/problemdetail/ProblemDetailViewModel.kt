@@ -30,12 +30,12 @@ class ProblemDetailViewModel(
     fun load() {
         _state.value = _state.value.copy(isLoading = true, error = null)
         viewModelScope.launch {
-            val problemsRes = repository.fetchProblems(limit = 500)
-            val problem = problemsRes.getOrNull()?.firstOrNull { it.eventid == eventId }
+            val problemRes = repository.getProblem(eventId)
+            val problem = problemRes.getOrNull()
             if (problem == null) {
                 _state.value = _state.value.copy(
                     isLoading = false,
-                    error = problemsRes.exceptionOrNull()?.message ?: "Problema não encontrado",
+                    error = problemRes.exceptionOrNull()?.message ?: "Problema não encontrado",
                 )
                 return@launch
             }

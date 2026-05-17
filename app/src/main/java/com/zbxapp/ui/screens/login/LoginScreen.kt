@@ -18,12 +18,15 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
-import androidx.compose.runtime.remember
-import androidx.compose.runtime.setValue
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.text.input.KeyboardCapitalization
 import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.input.PasswordVisualTransformation
 import androidx.compose.ui.text.input.VisualTransformation
@@ -32,6 +35,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.zbxapp.R
 import com.zbxapp.di.AppContainer
 
 @Composable
@@ -42,7 +46,7 @@ fun LoginScreen(container: AppContainer, onLoggedIn: () -> Unit) {
         },
     )
     val state by vm.state.collectAsStateWithLifecycle()
-    var showPassword by remember { mutableStateOf(false) }
+    var showPassword by rememberSaveable { mutableStateOf(false) }
 
     Scaffold { inner ->
         Column(
@@ -55,12 +59,12 @@ fun LoginScreen(container: AppContainer, onLoggedIn: () -> Unit) {
             verticalArrangement = Arrangement.spacedBy(16.dp),
         ) {
             Text(
-                text = "ZBX",
+                text = stringResource(R.string.login_brand),
                 style = MaterialTheme.typography.displayMedium,
                 color = MaterialTheme.colorScheme.primary,
             )
             Text(
-                text = "Conecte-se ao seu Zabbix",
+                text = stringResource(R.string.login_tagline),
                 style = MaterialTheme.typography.titleMedium,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
@@ -69,36 +73,53 @@ fun LoginScreen(container: AppContainer, onLoggedIn: () -> Unit) {
             OutlinedTextField(
                 value = state.baseUrl,
                 onValueChange = vm::onUrlChange,
-                label = { Text("URL do servidor (ex: https://zbx.empresa.com)") },
+                label = { Text(stringResource(R.string.login_url_label)) },
                 singleLine = true,
-                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri),
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Uri,
+                    capitalization = KeyboardCapitalization.None,
+                ),
                 modifier = Modifier.fillMaxWidth(),
             )
             OutlinedTextField(
                 value = state.username,
                 onValueChange = vm::onUserChange,
-                label = { Text("Usuário") },
+                label = { Text(stringResource(R.string.login_user_label)) },
                 singleLine = true,
+                keyboardOptions = KeyboardOptions(
+                    keyboardType = KeyboardType.Email,
+                    capitalization = KeyboardCapitalization.None,
+                ),
                 modifier = Modifier.fillMaxWidth(),
             )
             OutlinedTextField(
                 value = state.password,
                 onValueChange = vm::onPasswordChange,
-                label = { Text("Senha") },
+                label = { Text(stringResource(R.string.login_password_label)) },
                 singleLine = true,
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Password),
                 visualTransformation = if (showPassword) VisualTransformation.None else PasswordVisualTransformation(),
                 trailingIcon = {
-                    androidx.compose.material3.TextButton(onClick = { showPassword = !showPassword }) {
-                        Text(if (showPassword) "Ocultar" else "Mostrar")
+                    TextButton(onClick = { showPassword = !showPassword }) {
+                        Text(
+                            text = stringResource(
+                                if (showPassword) R.string.login_hide else R.string.login_show,
+                            ),
+                        )
                     }
                 },
                 modifier = Modifier.fillMaxWidth(),
             )
 
-            state.error?.let { err ->
+            state.errorType?.let { type ->
+                val baseMsg = when (type) {
+                    LoginError.MissingFields -> stringResource(R.string.login_fill_fields)
+                    LoginError.InvalidUrl -> stringResource(R.string.login_invalid_url)
+                    LoginError.ConnectFailed -> state.errorDetail
+                        ?: stringResource(R.string.login_connect_failed)
+                }
                 Text(
-                    text = err,
+                    text = baseMsg,
                     color = MaterialTheme.colorScheme.error,
                     style = MaterialTheme.typography.bodyMedium,
                 )
@@ -117,12 +138,15 @@ fun LoginScreen(container: AppContainer, onLoggedIn: () -> Unit) {
                         color = MaterialTheme.colorScheme.onPrimary,
                     )
                 } else {
-                    Text("Entrar", style = MaterialTheme.typography.titleMedium)
+                    Text(
+                        text = stringResource(R.string.login_submit),
+                        style = MaterialTheme.typography.titleMedium,
+                    )
                 }
             }
 
             Text(
-                text = "A versão da API é detectada automaticamente. Para Zabbix 7.0+ usamos Bearer Token; para versões anteriores, auth no corpo da requisição.",
+                text = stringResource(R.string.login_help),
                 style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                 modifier = Modifier.padding(top = 8.dp),

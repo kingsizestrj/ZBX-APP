@@ -1,6 +1,7 @@
 package com.zbxapp.ui.navigation
 
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.navigation.NavType
@@ -27,11 +28,23 @@ object Routes {
 }
 
 @Composable
-fun AppNavigation(container: AppContainer) {
+fun AppNavigation(
+    container: AppContainer,
+    initialEventId: String? = null,
+    onDeepLinkConsumed: () -> Unit = {},
+) {
     val navController = rememberNavController()
     val auth by container.storage.state.collectAsStateWithLifecycle()
 
     val startRoute = if (auth.isAuthenticated) Routes.PROBLEMS else Routes.LOGIN
+
+    LaunchedEffect(initialEventId, auth.isAuthenticated) {
+        val id = initialEventId
+        if (!id.isNullOrBlank() && auth.isAuthenticated) {
+            navController.navigate(Routes.problemDetail(id))
+            onDeepLinkConsumed()
+        }
+    }
 
     NavHost(navController = navController, startDestination = startRoute) {
         composable(Routes.LOGIN) {

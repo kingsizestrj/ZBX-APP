@@ -27,8 +27,10 @@ object NotificationHelper {
             .take(10)
             .forEach { p ->
                 val severity = p.severity.toIntOrNull() ?: 0
-                val host = p.hosts.firstOrNull()?.name?.ifBlank { p.hosts.firstOrNull()?.host }.orEmpty()
-                val title = "[${Severity.labelFor(severity)}] $host".trim().ifEmpty { "Novo problema" }
+                val host = p.hosts.firstOrNull()?.name?.takeIf { it.isNotBlank() }
+                    ?: p.hosts.firstOrNull()?.host?.takeIf { it.isNotBlank() }
+                val label = Severity.labelFor(severity)
+                val title = if (host != null) "[$label] $host" else context.getString(R.string.notif_new_problem)
                 val pendingIntent = PendingIntent.getActivity(
                     context,
                     p.eventid.hashCode(),
@@ -43,7 +45,7 @@ object NotificationHelper {
                     .setColor(Severity.colorFor(severity).toArgb())
                     .setColorized(true)
                     .setContentTitle(title)
-                    .setContentText(p.name.ifBlank { "Sem descrição" })
+                    .setContentText(p.name.ifBlank { context.getString(R.string.notif_no_description) })
                     .setStyle(NotificationCompat.BigTextStyle().bigText(p.name))
                     .setPriority(NotificationCompat.PRIORITY_HIGH)
                     .setCategory(NotificationCompat.CATEGORY_ALARM)

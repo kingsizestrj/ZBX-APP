@@ -39,7 +39,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -48,12 +47,14 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.zbxapp.R
 import com.zbxapp.data.api.models.ZbxAcknowledge
 import com.zbxapp.data.api.models.ZbxItem
 import com.zbxapp.data.api.models.ZbxProblem
@@ -80,17 +81,16 @@ fun ProblemDetailScreen(
     val state by vm.state.collectAsStateWithLifecycle()
     var ackDialog by remember { mutableStateOf<AckDialog?>(null) }
 
-    LaunchedEffect(state.actionMessage) {
-        // toast-style feedback could be added here later
-    }
-
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text("Detalhe do incidente") },
+                title = { Text(stringResource(R.string.detail_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Voltar")
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.action_back),
+                        )
                     }
                 },
             )
@@ -99,13 +99,16 @@ fun ProblemDetailScreen(
         val problem = state.problem
         if (state.isLoading) {
             Box(Modifier.fillMaxSize().padding(inner), contentAlignment = Alignment.Center) {
-                Text("Carregando…", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                Text(
+                    text = stringResource(R.string.loading),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
             }
             return@Scaffold
         }
         if (problem == null) {
             Box(Modifier.fillMaxSize().padding(inner), contentAlignment = Alignment.Center) {
-                Text(state.error ?: "Não encontrado")
+                Text(state.error ?: stringResource(R.string.detail_not_found))
             }
             return@Scaffold
         }
@@ -163,6 +166,14 @@ private fun Header(problem: ZbxProblem) {
     val severity = problem.severity.toIntOrNull() ?: 0
     val host = problem.hosts.firstOrNull()?.name?.ifBlank { problem.hosts.firstOrNull()?.host }.orEmpty()
     val clock = problem.clock.toLongOrNull() ?: 0L
+    val sevLabel = when (severity) {
+        1 -> stringResource(R.string.severity_information)
+        2 -> stringResource(R.string.severity_warning)
+        3 -> stringResource(R.string.severity_average)
+        4 -> stringResource(R.string.severity_high)
+        5 -> stringResource(R.string.severity_disaster)
+        else -> stringResource(R.string.severity_not_classified)
+    }
 
     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
@@ -175,7 +186,7 @@ private fun Header(problem: ZbxProblem) {
             )
             Spacer(Modifier.width(8.dp))
             Text(
-                text = Severity.labelFor(severity).uppercase(),
+                text = sevLabel.uppercase(),
                 color = Severity.colorFor(severity),
                 fontWeight = FontWeight.Bold,
                 style = MaterialTheme.typography.labelLarge,
@@ -183,23 +194,31 @@ private fun Header(problem: ZbxProblem) {
             Spacer(Modifier.width(8.dp))
             if (problem.acknowledged == "1") {
                 Surface(color = MaterialTheme.colorScheme.surfaceVariant, shape = RoundedCornerShape(4.dp)) {
-                    Text("ACK", Modifier.padding(horizontal = 6.dp, vertical = 2.dp), style = MaterialTheme.typography.labelSmall)
+                    Text(
+                        text = stringResource(R.string.filter_chip_ack),
+                        modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
+                        style = MaterialTheme.typography.labelSmall,
+                    )
                 }
             }
         }
         Text(
-            text = problem.name.ifBlank { "Sem descrição" },
+            text = problem.name.ifBlank { stringResource(R.string.problems_no_description) },
             style = MaterialTheme.typography.headlineSmall,
             fontWeight = FontWeight.SemiBold,
         )
         if (host.isNotBlank()) {
-            Text("Host: $host", style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+            Text(
+                text = stringResource(R.string.detail_host, host),
+                style = MaterialTheme.typography.bodyMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
         if (problem.opdata.isNotBlank()) {
             Text(problem.opdata, style = MaterialTheme.typography.bodyMedium)
         }
         Text(
-            text = "Iniciado: " + formatDateTime(clock),
+            text = stringResource(R.string.detail_started, formatDateTime(clock)),
             style = MaterialTheme.typography.bodySmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
@@ -217,7 +236,7 @@ private fun ActionsRow(onAck: () -> Unit, onClose: () -> Unit, onComment: () -> 
         ) {
             Icon(Icons.Default.Done, contentDescription = null)
             Spacer(Modifier.width(6.dp))
-            Text("Ack")
+            Text(stringResource(R.string.detail_action_ack_short))
         }
         Button(
             onClick = onClose,
@@ -228,7 +247,7 @@ private fun ActionsRow(onAck: () -> Unit, onClose: () -> Unit, onComment: () -> 
         ) {
             Icon(Icons.Default.Close, contentDescription = null)
             Spacer(Modifier.width(6.dp))
-            Text("Fechar")
+            Text(stringResource(R.string.detail_action_close))
         }
         OutlinedButton(
             onClick = onComment,
@@ -236,7 +255,7 @@ private fun ActionsRow(onAck: () -> Unit, onClose: () -> Unit, onComment: () -> 
             modifier = Modifier.weight(1f),
             contentPadding = PaddingValues(vertical = 10.dp),
         ) {
-            Text("Comentar")
+            Text(stringResource(R.string.detail_action_comment))
         }
     }
 }
@@ -245,7 +264,7 @@ private fun ActionsRow(onAck: () -> Unit, onClose: () -> Unit, onComment: () -> 
 @Composable
 private fun TagsSection(problem: ZbxProblem) {
     Column {
-        SectionTitle("Tags")
+        SectionTitle(stringResource(R.string.detail_section_tags))
         androidx.compose.foundation.layout.FlowRow(
             modifier = Modifier.fillMaxWidth(),
             horizontalArrangement = Arrangement.spacedBy(6.dp),
@@ -270,7 +289,7 @@ private fun TagsSection(problem: ZbxProblem) {
 @Composable
 private fun ItemsSection(items: List<ZbxItem>, onItemClick: (String) -> Unit) {
     Column {
-        SectionTitle("Itens da trigger (clique para abrir o gráfico)")
+        SectionTitle(stringResource(R.string.detail_section_items))
         Surface(
             shape = RoundedCornerShape(8.dp),
             color = MaterialTheme.colorScheme.surfaceVariant,
@@ -288,18 +307,23 @@ private fun ItemsSection(items: List<ZbxItem>, onItemClick: (String) -> Unit) {
                         Column(Modifier.weight(1f)) {
                             Text(item.name, fontWeight = FontWeight.Medium)
                             Text(
-                                "key: ${item.key_}",
+                                text = stringResource(R.string.detail_item_key, item.key_),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
                             if (item.lastvalue.isNotBlank()) {
+                                val combined = if (item.units.isNotBlank()) "${item.lastvalue} ${item.units}" else item.lastvalue
                                 Text(
-                                    "atual: ${item.lastvalue}${if (item.units.isNotBlank()) " ${item.units}" else ""}",
+                                    text = stringResource(R.string.detail_item_current, combined),
                                     style = MaterialTheme.typography.bodySmall,
                                 )
                             }
                         }
-                        Icon(Icons.Default.ShowChart, contentDescription = null, tint = MaterialTheme.colorScheme.primary)
+                        Icon(
+                            Icons.Default.ShowChart,
+                            contentDescription = null,
+                            tint = MaterialTheme.colorScheme.primary,
+                        )
                     }
                     if (index < items.lastIndex) HorizontalDivider(color = Color.Black.copy(alpha = 0.15f))
                 }
@@ -311,14 +335,15 @@ private fun ItemsSection(items: List<ZbxItem>, onItemClick: (String) -> Unit) {
 @Composable
 private fun HistorySection(acks: List<ZbxAcknowledge>) {
     Column {
-        SectionTitle("Histórico")
+        SectionTitle(stringResource(R.string.detail_section_history))
         Surface(
             shape = RoundedCornerShape(8.dp),
             color = MaterialTheme.colorScheme.surfaceVariant,
             modifier = Modifier.fillMaxWidth(),
         ) {
             Column {
-                acks.sortedByDescending { it.clock.toLongOrNull() ?: 0L }.forEach { ack ->
+                val sorted = acks.sortedByDescending { it.clock.toLongOrNull() ?: 0L }
+                sorted.forEachIndexed { idx, ack ->
                     Column(Modifier.padding(12.dp)) {
                         Text(
                             text = formatDateTime(ack.clock.toLongOrNull() ?: 0L),
@@ -330,10 +355,14 @@ private fun HistorySection(acks: List<ZbxAcknowledge>) {
                         }
                         val flags = describeAckAction(ack.action.toIntOrNull() ?: 0)
                         if (flags.isNotEmpty()) {
-                            Text(flags, style = MaterialTheme.typography.labelSmall, color = MaterialTheme.colorScheme.primary)
+                            Text(
+                                text = flags,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.primary,
+                            )
                         }
                     }
-                    HorizontalDivider(color = Color.Black.copy(alpha = 0.15f))
+                    if (idx < sorted.lastIndex) HorizontalDivider(color = Color.Black.copy(alpha = 0.15f))
                 }
             }
         }
@@ -354,14 +383,19 @@ private fun SectionTitle(title: String) {
 private fun AckMessageDialog(type: AckDialog, onDismiss: () -> Unit, onConfirm: (String) -> Unit) {
     var msg by remember { mutableStateOf("") }
     val title = when (type) {
-        AckDialog.Ack -> "Reconhecer incidente"
-        AckDialog.Close -> "Fechar incidente"
-        AckDialog.Comment -> "Adicionar comentário"
+        AckDialog.Ack -> stringResource(R.string.detail_dialog_ack_title)
+        AckDialog.Close -> stringResource(R.string.detail_dialog_close_title)
+        AckDialog.Comment -> stringResource(R.string.detail_dialog_comment_title)
     }
     val confirmLabel = when (type) {
-        AckDialog.Ack -> "Reconhecer"
-        AckDialog.Close -> "Fechar"
-        AckDialog.Comment -> "Enviar"
+        AckDialog.Ack -> stringResource(R.string.detail_confirm_ack)
+        AckDialog.Close -> stringResource(R.string.detail_confirm_close)
+        AckDialog.Comment -> stringResource(R.string.detail_confirm_comment)
+    }
+    val messageLabel = if (type == AckDialog.Comment) {
+        stringResource(R.string.detail_dialog_message_required)
+    } else {
+        stringResource(R.string.detail_dialog_message_optional)
     }
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -370,29 +404,33 @@ private fun AckMessageDialog(type: AckDialog, onDismiss: () -> Unit, onConfirm: 
             OutlinedTextField(
                 value = msg,
                 onValueChange = { msg = it },
-                label = { Text(if (type == AckDialog.Comment) "Mensagem" else "Mensagem (opcional)") },
+                label = { Text(messageLabel) },
                 modifier = Modifier.fillMaxWidth(),
                 minLines = 3,
             )
         },
         confirmButton = {
-            Button(onClick = { onConfirm(msg) }) { Text(confirmLabel) }
+            Button(
+                onClick = { onConfirm(msg) },
+                enabled = type != AckDialog.Comment || msg.isNotBlank(),
+            ) { Text(confirmLabel) }
         },
         dismissButton = {
-            TextButton(onClick = onDismiss) { Text("Cancelar") }
+            TextButton(onClick = onDismiss) { Text(stringResource(R.string.action_cancel)) }
         },
     )
 }
 
+@Composable
 private fun describeAckAction(action: Int): String {
     if (action == 0) return ""
     val parts = mutableListOf<String>()
-    if (action and 1 != 0) parts += "fechou"
-    if (action and 2 != 0) parts += "ack"
-    if (action and 4 != 0) parts += "mensagem"
-    if (action and 8 != 0) parts += "alterou severidade"
-    if (action and 16 != 0) parts += "desfez ack"
-    if (action and 32 != 0) parts += "suprimiu"
+    if (action and 1 != 0) parts += stringResource(R.string.detail_history_closed)
+    if (action and 2 != 0) parts += stringResource(R.string.detail_history_ack)
+    if (action and 4 != 0) parts += stringResource(R.string.detail_history_message)
+    if (action and 8 != 0) parts += stringResource(R.string.detail_history_severity)
+    if (action and 16 != 0) parts += stringResource(R.string.detail_history_unacked)
+    if (action and 32 != 0) parts += stringResource(R.string.detail_history_suppressed)
     return parts.joinToString(", ")
 }
 

@@ -1,0 +1,140 @@
+<resources>
+    <string name="app_name">ZBX</string>
+    <string name="notification_channel_problems_name">New incidents</string>
+    <string name="notification_channel_problems_desc">Alerts when a new problem appears in Zabbix</string>
+    <string name="notif_new_problem">New problem</string>
+    <string name="notif_no_description">No description</string>
+
+    <!-- Generic -->
+    <string name="action_back">Back</string>
+    <string name="action_refresh">Refresh</string>
+    <string name="action_settings">Settings</string>
+    <string name="action_cancel">Cancel</string>
+    <string name="action_filters">Filters</string>
+    <string name="action_show_filters">Show filters</string>
+    <string name="action_hide_filters">Hide filters</string>
+    <string name="loading">Loading…</string>
+    <string name="state_now">just now</string>
+    <string name="state_minutes_ago">%1$d min ago</string>
+    <string name="state_at_time">at %1$s</string>
+
+    <!-- Problems screen -->
+    <string name="problems_title">Problems</string>
+    <string name="problems_summary">%1$d active · updated %2$s</string>
+    <string name="problems_empty">No active problems</string>
+    <string name="problems_error_generic">Failed to fetch problems</string>
+    <string name="problems_no_description">No description</string>
+    <string name="problems_offline_banner">Offline mode — last update %1$s</string>
+
+    <!-- Filters -->
+    <string name="filter_search_placeholder">Search by name or host</string>
+    <string name="filter_host_label">Host</string>
+    <string name="filter_tag_label">Tag</string>
+    <string name="filter_severity_label">Severity</string>
+    <string name="filter_only_unacked">Unacknowledged</string>
+    <string name="filter_include_suppressed">Include suppressed</string>
+    <string name="filter_chip_ack">ACK</string>
+    <string name="filter_clear">Clear filters</string>
+    <string name="filter_all_severities">All</string>
+
+    <!-- Severity labels -->
+    <string name="severity_not_classified">Not classified</string>
+    <string name="severity_information">Information</string>
+    <string name="severity_warning">Warning</string>
+    <string name="severity_average">Average</string>
+    <string name="severity_high">High</string>
+    <string name="severity_disaster">Disaster</string>
+
+    <!-- Problem detail -->
+    <string name="detail_title">Incident detail</string>
+    <string name="detail_host">Host: %1$s</string>
+    <string name="detail_started">Started: %1$s</string>
+    <string name="detail_not_found">Not found</string>
+    <string name="detail_action_ack">Acknowledge</string>
+    <string name="detail_action_ack_short">Ack</string>
+    <string name="detail_action_close">Close</string>
+    <string name="detail_action_comment">Comment</string>
+    <string name="detail_section_tags">Tags</string>
+    <string name="detail_section_items">Trigger items (tap to open graph)</string>
+    <string name="detail_section_history">History</string>
+    <string name="detail_item_key">key: %1$s</string>
+    <string name="detail_item_current">current: %1$s</string>
+    <string name="detail_dialog_ack_title">Acknowledge incident</string>
+    <string name="detail_dialog_close_title">Close incident</string>
+    <string name="detail_dialog_comment_title">Add comment</string>
+    <string name="detail_dialog_message_required">Message</string>
+    <string name="detail_dialog_message_optional">Message (optional)</string>
+    <string name="detail_confirm_ack">Acknowledge</string>
+    <string name="detail_confirm_close">Close</string>
+    <string name="detail_confirm_comment">Send</string>
+    <string name="detail_result_acked">Acknowledged</string>
+    <string name="detail_result_closed">Closed</string>
+    <string name="detail_result_commented">Comment sent</string>
+    <string name="detail_action_failed">Action failed</string>
+    <string name="detail_history_closed">closed</string>
+    <string name="detail_history_ack">ack</string>
+    <string name="detail_history_message">message</string>
+    <string name="detail_history_severity">changed severity</string>
+    <string name="detail_history_unacked">unacked</string>
+    <string name="detail_history_suppressed">suppressed</string>
+
+    <!-- Graph screen -->
+    <string name="graph_title">Graph</string>
+    <string name="graph_current_value">current: %1$s</string>
+    <string name="graph_no_points">No data points in range</string>
+    <string name="graph_few_points">Not enough points</string>
+    <string name="graph_not_numeric">This item is not numeric — no graph available.</string>
+    <string name="graph_stats">min %1$s · max %2$s · avg %3$s</string>
+    <string name="graph_item_not_found">Item not found</string>
+    <string name="graph_load_failed">Failed to load history</string>
+    <string name="graph_range_1h">1h</string>
+    <string name="graph_range_6h">6h</string>
+    <string name="graph_range_24h">24h</string>
+    <string name="graph_range_7d">7d</string>
+
+    <!-- Login -->
+    <string name="login_brand">ZBX</string>
+    <string name="login_tagline">Connect to your Zabbix</string>
+    <string name="login_url_label">Server URL (e.g. https://zbx.company.com)</string>
+    <string name="login_user_label">Username</string>
+    <string name="login_password_label">Password</string>
+    <string name="login_show">Show</string>
+    <string name="login_hide">Hide</string>
+    <string name="login_submit">Sign in</string>
+    <string name="login_fill_fields">Enter URL, username and password</string>
+    <string name="login_invalid_url">Invalid URL</string>
+    <string name="login_connect_failed">Failed to connect</string>
+    <string name="login_help">The API version is detected automatically. Zabbix 7.0+ uses Bearer Token; older versions use auth in the request body.</string>
+
+    <!-- Settings -->
+    <string name="settings_title">Settings</string>
+    <string name="settings_section_server">Server</string>
+    <string name="settings_auth_bearer">Authentication: Bearer (Zabbix 7.0+)</string>
+    <string name="settings_auth_inbody">Authentication: Auth in-body (≤6.4)</string>
+    <string name="settings_min_severity_title">Minimum severity for notifications</string>
+    <string name="settings_min_severity_desc">Only problems with equal or higher severity trigger pushes.</string>
+    <string name="settings_poll_title">Background poll interval</string>
+    <string name="settings_poll_desc">Android minimum is 15 min. More often = more battery.</string>
+    <string name="settings_poll_minutes">%1$dm</string>
+    <string name="settings_suppressed_title">Suppressed problems</string>
+    <string name="settings_suppressed_desc">When on, problems in maintenance/suppressed also appear in the list and trigger notifications.</string>
+    <string name="settings_logout">Sign out (clears saved credentials)</string>
+    <string name="settings_version">ZBX • v0.1.0</string>
+    <string name="settings_theme_title">Theme</string>
+    <string name="settings_theme_desc">Choose how the app should follow the system theme.</string>
+    <string name="settings_theme_system">Follow system</string>
+    <string name="settings_theme_light">Light</string>
+    <string name="settings_theme_dark">Dark</string>
+    <string name="settings_dynamic_color_title">Dynamic colors (Android 12+)</string>
+    <string name="settings_dynamic_color_desc">Uses the device Material You theme when available.</string>
+    <string name="settings_biometric_title">Require biometrics to open the app</string>
+    <string name="settings_biometric_desc">Asks for fingerprint or face recognition before showing problems.</string>
+    <string name="settings_biometric_unavailable">Biometrics unavailable on this device.</string>
+
+    <!-- Biometric -->
+    <string name="biometric_prompt_title">Unlock ZBX</string>
+    <string name="biometric_prompt_subtitle">Use your biometrics to continue</string>
+    <string name="biometric_prompt_negative">Cancel</string>
+    <string name="biometric_retry">Try again</string>
+    <string name="biometric_locked">Authentication required</string>
+</resources>

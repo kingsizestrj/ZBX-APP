@@ -1,5 +1,8 @@
 package com.zbxapp.ui.screens.problems
 
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.expandVertically
+import androidx.compose.animation.shrinkVertically
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.horizontalScroll
@@ -21,6 +24,8 @@ import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
+import androidx.compose.material.icons.filled.Clear
+import androidx.compose.material.icons.filled.FilterList
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -29,25 +34,34 @@ import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
+import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.TopAppBarDefaults
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.zbxapp.R
 import com.zbxapp.data.api.models.ZbxProblem
 import com.zbxapp.di.AppContainer
 import com.zbxapp.ui.theme.Severity
@@ -68,17 +82,46 @@ fun ProblemsScreen(
         },
     )
     val state by vm.state.collectAsStateWithLifecycle()
-    val visible = remember(state) { vm.visibleProblems() }
+
+    var filtersOpen by rememberSaveable { mutableStateOf(false) }
+    var searchQuery by rememberSaveable { mutableStateOf("") }
+    var hostFilter by rememberSaveable { mutableStateOf("") }
+    var tagFilter by rememberSaveable { mutableStateOf("") }
+    var severitiesRaw by rememberSaveable { mutableStateOf("") }
+    val severitiesSelected = remember(severitiesRaw) {
+        severitiesRaw.split(',').mapNotNull { it.toIntOrNull() }.toSet()
+    }
+
+    val baseList = remember(state.problems, state.onlyUnacked) {
+        state.problems.filter { p -> !state.onlyUnacked || p.acknowledged != "1" }
+    }
+    val visible = remember(baseList, searchQuery, hostFilter, tagFilter, severitiesSelected) {
+        applyFilters(
+            list = baseList,
+            search = searchQuery,
+            host = hostFilter,
+            tag = tagFilter,
+            severities = severitiesSelected,
+        )
+    }
+    val isOffline = state.error != null && state.problems.isNotEmpty()
 
     Scaffold(
         topBar = {
             TopAppBar(
                 title = {
                     Column {
-                        Text("Problems", style = MaterialTheme.typography.titleLarge)
+                        Text(
+                            text = stringResource(R.string.problems_title),
+                            style = MaterialTheme.typography.titleLarge,
+                        )
                         if (state.lastUpdatedMs > 0) {
                             Text(
-                                text = "${visible.size} ativos · atualizado ${formatRelative(state.lastUpdatedMs)}",
+                                text = stringResource(
+                                    R.string.problems_summary,
+                                    visible.size,
+                                    formatRelative(state.lastUpdatedMs),
+                                ),
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
                             )
@@ -86,11 +129,25 @@ fun ProblemsScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = { filtersOpen = !filtersOpen }) {
+                        Icon(
+                            Icons.Default.FilterList,
+                            contentDescription = stringResource(
+                                if (filtersOpen) R.string.action_hide_filters else R.string.action_show_filters,
+                            ),
+                        )
+                    }
                     IconButton(onClick = vm::refresh) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Atualizar")
+                        Icon(
+                            Icons.Default.Refresh,
+                            contentDescription = stringResource(R.string.action_refresh),
+                        )
                     }
                     IconButton(onClick = onOpenSettings) {
-                        Icon(Icons.Default.Settings, contentDescription = "Configurações")
+                        Icon(
+                            Icons.Default.Settings,
+                            contentDescription = stringResource(R.string.action_settings),
+                        )
                     }
                 },
                 colors = TopAppBarDefaults.topAppBarColors(
@@ -100,26 +157,74 @@ fun ProblemsScreen(
         },
     ) { inner ->
         Column(modifier = Modifier.fillMaxSize().padding(inner)) {
-            FilterRow(
-                minSeverity = state.minSeverityFilter,
+            QuickFilterRow(
                 onlyUnacked = state.onlyUnacked,
                 includeSuppressed = state.includeSuppressed,
-                onSeverityChange = vm::setSeverityFilter,
                 onUnackedToggle = vm::setOnlyUnacked,
                 onIncludeSuppressedToggle = vm::setIncludeSuppressed,
             )
 
-            state.error?.let { err ->
+            AnimatedVisibility(
+                visible = filtersOpen,
+                enter = expandVertically(),
+                exit = shrinkVertically(),
+            ) {
+                AdvancedFiltersPanel(
+                    searchQuery = searchQuery,
+                    onSearchChange = { searchQuery = it },
+                    hostFilter = hostFilter,
+                    onHostChange = { hostFilter = it },
+                    tagFilter = tagFilter,
+                    onTagChange = { tagFilter = it },
+                    severitiesSelected = severitiesSelected,
+                    onToggleSeverity = { sev ->
+                        val updated = severitiesSelected.toMutableSet().apply {
+                            if (!add(sev)) remove(sev)
+                        }
+                        severitiesRaw = updated.sorted().joinToString(",")
+                    },
+                    onClear = {
+                        searchQuery = ""
+                        hostFilter = ""
+                        tagFilter = ""
+                        severitiesRaw = ""
+                    },
+                )
+            }
+
+            if (isOffline) {
                 Surface(
-                    color = MaterialTheme.colorScheme.errorContainer,
-                    modifier = Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 6.dp),
+                    color = MaterialTheme.colorScheme.tertiaryContainer,
+                    modifier = Modifier
+                        .fillMaxWidth()
+                        .padding(horizontal = 12.dp, vertical = 6.dp),
                     shape = RoundedCornerShape(8.dp),
                 ) {
                     Text(
-                        text = err,
+                        text = stringResource(
+                            R.string.problems_offline_banner,
+                            formatRelative(state.lastUpdatedMs),
+                        ),
                         modifier = Modifier.padding(12.dp),
-                        color = MaterialTheme.colorScheme.onErrorContainer,
+                        color = MaterialTheme.colorScheme.onTertiaryContainer,
+                        style = MaterialTheme.typography.bodySmall,
                     )
+                }
+            } else {
+                state.error?.let { err ->
+                    Surface(
+                        color = MaterialTheme.colorScheme.errorContainer,
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .padding(horizontal = 12.dp, vertical = 6.dp),
+                        shape = RoundedCornerShape(8.dp),
+                    ) {
+                        Text(
+                            text = err,
+                            modifier = Modifier.padding(12.dp),
+                            color = MaterialTheme.colorScheme.onErrorContainer,
+                        )
+                    }
                 }
             }
 
@@ -130,7 +235,10 @@ fun ProblemsScreen(
             ) {
                 if (state.isLoading) {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
-                        Text("Carregando…", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                        Text(
+                            text = stringResource(R.string.loading),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                     }
                 } else if (visible.isEmpty()) {
                     Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
@@ -142,7 +250,10 @@ fun ProblemsScreen(
                                 modifier = Modifier.size(48.dp),
                             )
                             Spacer(Modifier.height(8.dp))
-                            Text("Nenhum problema ativo", style = MaterialTheme.typography.titleMedium)
+                            Text(
+                                text = stringResource(R.string.problems_empty),
+                                style = MaterialTheme.typography.titleMedium,
+                            )
                         }
                     }
                 } else {
@@ -161,13 +272,43 @@ fun ProblemsScreen(
     }
 }
 
+private fun applyFilters(
+    list: List<ZbxProblem>,
+    search: String,
+    host: String,
+    tag: String,
+    severities: Set<Int>,
+): List<ZbxProblem> {
+    val s = search.trim().lowercase()
+    val h = host.trim().lowercase()
+    val t = tag.trim().lowercase()
+    return list.filter { p ->
+        val sev = p.severity.toIntOrNull() ?: 0
+        if (severities.isNotEmpty() && sev !in severities) return@filter false
+        val hostNames = p.hosts.map { (it.name.ifBlank { it.host }).lowercase() }
+        if (s.isNotEmpty()) {
+            val nameMatch = p.name.lowercase().contains(s)
+            val hostMatch = hostNames.any { it.contains(s) }
+            if (!nameMatch && !hostMatch) return@filter false
+        }
+        if (h.isNotEmpty() && hostNames.none { it.contains(h) }) return@filter false
+        if (t.isNotEmpty()) {
+            val tagMatch = p.tags.any { tagObj ->
+                tagObj.tag.lowercase().contains(t) ||
+                    tagObj.value.lowercase().contains(t) ||
+                    "${tagObj.tag}:${tagObj.value}".lowercase().contains(t)
+            }
+            if (!tagMatch) return@filter false
+        }
+        true
+    }
+}
+
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-private fun FilterRow(
-    minSeverity: Int,
+private fun QuickFilterRow(
     onlyUnacked: Boolean,
     includeSuppressed: Boolean,
-    onSeverityChange: (Int) -> Unit,
     onUnackedToggle: (Boolean) -> Unit,
     onIncludeSuppressedToggle: (Boolean) -> Unit,
 ) {
@@ -179,28 +320,105 @@ private fun FilterRow(
         horizontalArrangement = Arrangement.spacedBy(8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        listOf(
-            0 to "Todas",
-            2 to "≥ Warning",
-            3 to "≥ Average",
-            4 to "≥ High",
-        ).forEach { (sev, label) ->
-            FilterChip(
-                selected = minSeverity == sev,
-                onClick = { onSeverityChange(sev) },
-                label = { Text(label) },
-            )
-        }
         FilterChip(
             selected = onlyUnacked,
             onClick = { onUnackedToggle(!onlyUnacked) },
-            label = { Text("Não ack") },
+            label = { Text(stringResource(R.string.filter_only_unacked)) },
         )
         FilterChip(
             selected = includeSuppressed,
             onClick = { onIncludeSuppressedToggle(!includeSuppressed) },
-            label = { Text("Inclui suprimidos") },
+            label = { Text(stringResource(R.string.filter_include_suppressed)) },
         )
+    }
+}
+
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun AdvancedFiltersPanel(
+    searchQuery: String,
+    onSearchChange: (String) -> Unit,
+    hostFilter: String,
+    onHostChange: (String) -> Unit,
+    tagFilter: String,
+    onTagChange: (String) -> Unit,
+    severitiesSelected: Set<Int>,
+    onToggleSeverity: (Int) -> Unit,
+    onClear: () -> Unit,
+) {
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(horizontal = 12.dp, vertical = 4.dp),
+        shape = RoundedCornerShape(12.dp),
+    ) {
+        Column(
+            modifier = Modifier.padding(12.dp),
+            verticalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            OutlinedTextField(
+                value = searchQuery,
+                onValueChange = onSearchChange,
+                label = { Text(stringResource(R.string.filter_search_placeholder)) },
+                singleLine = true,
+                trailingIcon = {
+                    if (searchQuery.isNotEmpty()) {
+                        IconButton(onClick = { onSearchChange("") }) {
+                            Icon(Icons.Default.Clear, contentDescription = stringResource(R.string.filter_clear))
+                        }
+                    }
+                },
+                modifier = Modifier.fillMaxWidth(),
+            )
+            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                OutlinedTextField(
+                    value = hostFilter,
+                    onValueChange = onHostChange,
+                    label = { Text(stringResource(R.string.filter_host_label)) },
+                    singleLine = true,
+                    modifier = Modifier.weight(1f),
+                )
+                OutlinedTextField(
+                    value = tagFilter,
+                    onValueChange = onTagChange,
+                    label = { Text(stringResource(R.string.filter_tag_label)) },
+                    singleLine = true,
+                    modifier = Modifier.weight(1f),
+                )
+            }
+            Text(
+                text = stringResource(R.string.filter_severity_label),
+                style = MaterialTheme.typography.labelMedium,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            Row(
+                modifier = Modifier
+                    .fillMaxWidth()
+                    .horizontalScroll(rememberScrollState()),
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                val severities = listOf(
+                    1 to R.string.severity_information,
+                    2 to R.string.severity_warning,
+                    3 to R.string.severity_average,
+                    4 to R.string.severity_high,
+                    5 to R.string.severity_disaster,
+                )
+                severities.forEach { (sev, labelRes) ->
+                    FilterChip(
+                        selected = sev in severitiesSelected,
+                        onClick = { onToggleSeverity(sev) },
+                        label = { Text(stringResource(labelRes)) },
+                    )
+                }
+            }
+            Row(horizontalArrangement = Arrangement.End, modifier = Modifier.fillMaxWidth()) {
+                TextButton(onClick = onClear) {
+                    Text(stringResource(R.string.filter_clear))
+                }
+            }
+        }
     }
 }
 
@@ -210,12 +428,14 @@ private fun ProblemRow(problem: ZbxProblem, onClick: () -> Unit) {
     val color = Severity.colorFor(severity)
     val host = problem.hosts.firstOrNull()?.name?.ifBlank { problem.hosts.firstOrNull()?.host }.orEmpty()
     val acked = problem.acknowledged == "1"
+    val rowDescription = stringResource(R.string.problems_title) + ": " + problem.name
 
     Row(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
-            .padding(horizontal = 12.dp, vertical = 12.dp),
+            .padding(horizontal = 12.dp, vertical = 12.dp)
+            .semantics { contentDescription = rowDescription },
         verticalAlignment = Alignment.Top,
     ) {
         Box(
@@ -236,7 +456,7 @@ private fun ProblemRow(problem: ZbxProblem, onClick: () -> Unit) {
                         shape = RoundedCornerShape(4.dp),
                     ) {
                         Text(
-                            "ACK",
+                            text = stringResource(R.string.filter_chip_ack),
                             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -252,7 +472,7 @@ private fun ProblemRow(problem: ZbxProblem, onClick: () -> Unit) {
             }
             Spacer(Modifier.height(4.dp))
             Text(
-                text = problem.name.ifBlank { "Sem descrição" },
+                text = problem.name.ifBlank { stringResource(R.string.problems_no_description) },
                 style = MaterialTheme.typography.bodyLarge,
                 fontWeight = FontWeight.SemiBold,
                 maxLines = 2,
@@ -277,12 +497,20 @@ private fun ProblemRow(problem: ZbxProblem, onClick: () -> Unit) {
 
 @Composable
 private fun SeverityChip(severity: Int) {
+    val label = when (severity) {
+        1 -> stringResource(R.string.severity_information)
+        2 -> stringResource(R.string.severity_warning)
+        3 -> stringResource(R.string.severity_average)
+        4 -> stringResource(R.string.severity_high)
+        5 -> stringResource(R.string.severity_disaster)
+        else -> stringResource(R.string.severity_not_classified)
+    }
     Surface(
         color = Severity.colorFor(severity),
         shape = RoundedCornerShape(4.dp),
     ) {
         Text(
-            text = Severity.labelFor(severity).uppercase(),
+            text = label.uppercase(),
             modifier = Modifier.padding(horizontal = 6.dp, vertical = 2.dp),
             color = Color.Black,
             style = MaterialTheme.typography.labelSmall,
@@ -303,11 +531,16 @@ private fun formatProblemAge(clockSeconds: Long): String {
     }
 }
 
+@Composable
 private fun formatRelative(timeMs: Long): String {
+    if (timeMs <= 0L) return ""
     val diff = ((System.currentTimeMillis() - timeMs) / 1000).coerceAtLeast(0)
     return when {
-        diff < 60 -> "agora"
-        diff < 3600 -> "há ${diff / 60} min"
-        else -> SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(timeMs))
+        diff < 60 -> stringResource(R.string.state_now)
+        diff < 3600 -> stringResource(R.string.state_minutes_ago, (diff / 60).toInt())
+        else -> stringResource(
+            R.string.state_at_time,
+            SimpleDateFormat("HH:mm", Locale.getDefault()).format(Date(timeMs)),
+        )
     }
 }

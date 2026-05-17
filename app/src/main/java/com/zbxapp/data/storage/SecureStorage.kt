@@ -19,9 +19,40 @@ data class ServerConfig(
 }
 
 /**
- * Holds Zabbix server config, credentials and auth token in EncryptedSharedPreferences.
- * Token is required for everything but login; credentials are stored so we can refresh
- * the token in background (WorkManager) without prompting the user.
+ * Encrypted persistence for Zabbix server configuration, user credentials and the
+ * issued API session token.
+ *
+ * ### Encryption
+ * Values are stored in [EncryptedSharedPreferences] backed by an Android Keystore
+ * master key created with [MasterKey.KeyScheme.AES256_GCM]:
+ * - **Keys** use [EncryptedSharedPreferences.PrefKeyEncryptionScheme.AES256_SIV]
+ *   (deterministic, allowing lookup) and
+ * - **Values** use [EncryptedSharedPreferences.PrefValueEncryptionScheme.AES256_GCM]
+ *   (authenticated, non-deterministic, with a fresh IV per write).
+ *
+ * Cryptographic material never leaves the secure hardware-backed keystore on devices
+ * that support it; on older or non-attested hardware the keystore falls back to a
+ * software implementation.
+ *
+ * ### Persisted secrets
+ * The user's **password** is intentionally retained on disk (encrypted) so that the
+ * background [com.zbxapp.worker.ProblemsPollingWorker] can transparently re-issue an
+ * API token when the previous one expires, without prompting the user. The Zabbix
+ * **session token** itself is similarly persisted.
+ *
+ * ### Threat model
+ * Protects against:
+ *  - Casual file-system inspection on a locked device.
+ *  - Off-device backup leakage (the app also disables `allowBackup`).
+ *  - Other apps on the same device (standard app sandboxing + keystore isolation).
+ *
+ * Does **not** protect against:
+ *  - A rooted device or attacker with arbitrary code execution under this app's UID.
+ *  - Memory dumps while the process is running and the master key has been unwrapped.
+ *  - Compromise of the Zabbix server itself.
+ *
+ * Callers should treat any value returned from this class as sensitive and avoid
+ * logging it.
  */
 class SecureStorage(context: Context) {
 

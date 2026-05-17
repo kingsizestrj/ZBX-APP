@@ -7,6 +7,8 @@ import android.os.Build
 import androidx.core.content.getSystemService
 import com.zbxapp.di.AppContainer
 import com.zbxapp.notification.NotificationHelper
+import com.zbxapp.util.GlobalErrorHandler
+import com.zbxapp.util.setupTimber
 import com.zbxapp.worker.ProblemsPollingWorker
 
 class ZbxApp : Application() {
@@ -15,6 +17,8 @@ class ZbxApp : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        setupTimber()
+        GlobalErrorHandler.install()
         container = AppContainer(this)
         createNotificationChannel()
         ProblemsPollingWorker.schedule(this, container.storage.state.value.pollIntervalMinutes)

@@ -1,4 +1,8 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <color name="ic_launcher_background">#0F1419</color>
+    <color name="zbx_primary">#E45959</color>
+    <color name="zbx_accent">#7499FF</color>
+    <color name="zbx_dark_surface">#0F1419</color>
+    <color name="zbx_dark_surface_variant">#1A2129</color>
 </resources>

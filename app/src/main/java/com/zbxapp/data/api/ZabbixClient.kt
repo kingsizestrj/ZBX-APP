@@ -5,6 +5,7 @@ import com.zbxapp.data.api.models.ZbxItem
 import com.zbxapp.data.api.models.ZbxProblem
 import com.zbxapp.data.api.models.ZbxTrigger
 import com.zbxapp.data.storage.ServerConfig
+import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
 import kotlinx.serialization.KSerializer
@@ -43,10 +44,14 @@ class ZabbixClient(
         return callPrimitive(server, "user.login", params, authToken = null)
     }
 
-    suspend fun logout(server: ServerConfig, token: String): Boolean = runCatching {
+    suspend fun logout(server: ServerConfig, token: String): Boolean = try {
         callPrimitive(server, "user.logout", buildJsonArray { }, authToken = token)
         true
-    }.getOrDefault(false)
+    } catch (e: CancellationException) {
+        throw e
+    } catch (_: Throwable) {
+        false
+    }
 
     suspend fun getProblems(
         server: ServerConfig,
@@ -74,6 +79,24 @@ class ZabbixClient(
             if (sinceClock != null) put("time_from", JsonPrimitive(sinceClock))
         }
         return call(server, "problem.get", params, token, ListSerializer(ZbxProblem.serializer()))
+    }
+
+    suspend fun getProblemByEventId(
+        server: ServerConfig,
+        token: String,
+        eventId: String,
+    ): ZbxProblem? {
+        val params = buildJsonObject {
+            put("output", JsonPrimitive("extend"))
+            put("selectAcknowledges", JsonPrimitive("extend"))
+            put("selectHosts", JsonPrimitive("extend"))
+            put("selectTags", JsonPrimitive("extend"))
+            put("recent", JsonPrimitive(false))
+            put("eventids", buildJsonArray { add(JsonPrimitive(eventId)) })
+            put("limit", JsonPrimitive(1))
+        }
+        val list = call(server, "problem.get", params, token, ListSerializer(ZbxProblem.serializer()))
+        return list.firstOrNull()
     }
 
     suspend fun getTriggers(server: ServerConfig, token: String, triggerIds: List<String>): List<ZbxTrigger> {

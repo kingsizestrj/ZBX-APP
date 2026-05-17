@@ -18,7 +18,7 @@ class ProblemsPollingWorker(
 ) : CoroutineWorker(context, params) {
 
     override suspend fun doWork(): Result {
-        val app = applicationContext as ZbxApp
+        val app = applicationContext as? ZbxApp ?: return Result.success()
         val repo = app.container.repository
         val storage = app.container.storage
 
@@ -27,19 +27,19 @@ class ProblemsPollingWorker(
 
         val problems = repo.fetchProblems().getOrElse { return Result.retry() }
 
-        val lastSeen = storage.getLastSeenEventId()?.toLongOrNull() ?: 0L
-        val newProblems = problems.filter { (it.eventid.toLongOrNull() ?: 0L) > lastSeen }
+        val storedLastSeen = storage.getLastSeenEventId()?.toLongOrNull()
+        val isFirstRun = storedLastSeen == null
+        val lastSeen = storedLastSeen ?: 0L
 
-        if (newProblems.isNotEmpty()) {
-            val filtered = newProblems.filter {
-                (it.severity.toIntOrNull() ?: 0) >= state.minSeverity &&
-                    (state.includeSuppressed || it.suppressed != "1")
+        if (!isFirstRun) {
+            val newProblems = problems.filter { (it.eventid.toLongOrNull() ?: 0L) > lastSeen }
+            if (newProblems.isNotEmpty()) {
+                NotificationHelper.notifyNewProblems(applicationContext, newProblems)
             }
-            NotificationHelper.notifyNewProblems(applicationContext, filtered)
         }
 
         val maxId = problems.maxOfOrNull { it.eventid.toLongOrNull() ?: 0L } ?: lastSeen
-        if (maxId > lastSeen) storage.saveLastSeenEventId(maxId.toString())
+        if (isFirstRun || maxId > lastSeen) storage.saveLastSeenEventId(maxId.toString())
 
         return Result.success()
     }

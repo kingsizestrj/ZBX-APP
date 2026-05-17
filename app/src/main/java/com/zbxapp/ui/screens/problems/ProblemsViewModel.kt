@@ -34,15 +34,16 @@ class ProblemsViewModel(
     val state: StateFlow<ProblemsUiState> = _state
 
     init {
-        load(initial = true)
+        observeCache()
+        refresh(initial = true)
     }
 
-    fun refresh() = load(initial = false)
+    fun refresh() = refresh(initial = false)
 
     fun setSeverityFilter(severity: Int) {
         _state.value = _state.value.copy(minSeverityFilter = severity)
         storage.saveMinSeverity(severity)
-        load(initial = false)
+        refresh(initial = false)
     }
 
     fun setOnlyUnacked(value: Boolean) {
@@ -52,7 +53,7 @@ class ProblemsViewModel(
     fun setIncludeSuppressed(value: Boolean) {
         _state.value = _state.value.copy(includeSuppressed = value)
         storage.saveIncludeSuppressed(value)
-        load(initial = false)
+        refresh(initial = false)
     }
 
     fun visibleProblems(): List<ZbxProblem> {
@@ -63,22 +64,29 @@ class ProblemsViewModel(
         }
     }
 
-    private fun load(initial: Boolean) {
+    private fun observeCache() {
+        viewModelScope.launch {
+            repository.observeCachedProblems().collect { cached ->
+                _state.value = _state.value.copy(problems = cached)
+            }
+        }
+    }
+
+    private fun refresh(initial: Boolean) {
         _state.value = _state.value.copy(
-            isLoading = initial,
+            isLoading = initial && _state.value.problems.isEmpty(),
             isRefreshing = !initial,
             error = null,
         )
         viewModelScope.launch {
-            val result = repository.fetchProblems(
+            val result = repository.refreshProblems(
                 minSeverity = _state.value.minSeverityFilter,
                 includeSuppressed = _state.value.includeSuppressed,
             )
-            result.onSuccess { problems ->
+            result.onSuccess {
                 _state.value = _state.value.copy(
                     isLoading = false,
                     isRefreshing = false,
-                    problems = problems,
                     lastUpdatedMs = System.currentTimeMillis(),
                 )
             }.onFailure { e ->

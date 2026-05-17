@@ -28,12 +28,14 @@ import androidx.compose.ui.graphics.Path
 import androidx.compose.ui.graphics.PathEffect
 import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.nativeCanvas
+import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import androidx.lifecycle.viewmodel.compose.viewModel
 import androidx.lifecycle.viewmodel.initializer
 import androidx.lifecycle.viewmodel.viewModelFactory
+import com.zbxapp.R
 import com.zbxapp.data.api.models.ZbxHistoryPoint
 import com.zbxapp.di.AppContainer
 import com.zbxapp.ui.theme.ZbxOnSurfaceMuted
@@ -56,10 +58,13 @@ fun GraphScreen(container: AppContainer, itemId: String, onBack: () -> Unit) {
     Scaffold(
         topBar = {
             TopAppBar(
-                title = { Text(state.item?.name ?: "Gráfico") },
+                title = { Text(state.item?.name ?: stringResource(R.string.graph_title)) },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
-                        Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Voltar")
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(R.string.action_back),
+                        )
                     }
                 },
             )
@@ -76,8 +81,9 @@ fun GraphScreen(container: AppContainer, itemId: String, onBack: () -> Unit) {
                     fontWeight = FontWeight.SemiBold,
                 )
                 if (item.lastvalue.isNotBlank()) {
+                    val combined = if (item.units.isNotBlank()) "${item.lastvalue} ${item.units}" else item.lastvalue
                     Text(
-                        "atual: ${item.lastvalue}${if (item.units.isNotBlank()) " ${item.units}" else ""}",
+                        text = stringResource(R.string.graph_current_value, combined),
                         style = MaterialTheme.typography.bodyMedium,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -86,29 +92,37 @@ fun GraphScreen(container: AppContainer, itemId: String, onBack: () -> Unit) {
 
             Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
                 TimeRange.entries.forEach { range ->
+                    val label = when (range) {
+                        TimeRange.LAST_HOUR -> stringResource(R.string.graph_range_1h)
+                        TimeRange.LAST_6H -> stringResource(R.string.graph_range_6h)
+                        TimeRange.LAST_24H -> stringResource(R.string.graph_range_24h)
+                        TimeRange.LAST_7D -> stringResource(R.string.graph_range_7d)
+                    }
                     FilterChip(
                         selected = state.range == range,
                         onClick = { vm.setRange(range) },
-                        label = { Text(range.label) },
+                        label = { Text(label) },
                     )
                 }
             }
 
             Box(modifier = Modifier.fillMaxWidth().height(280.dp), contentAlignment = Alignment.Center) {
                 when {
-                    state.isLoading -> Text("Carregando…", color = MaterialTheme.colorScheme.onSurfaceVariant)
+                    state.isLoading -> Text(
+                        text = stringResource(R.string.loading),
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
                     state.error != null && state.history.isEmpty() -> Text(
                         state.error!!,
                         color = MaterialTheme.colorScheme.error,
                         style = MaterialTheme.typography.bodyMedium,
                     )
                     state.history.isEmpty() -> Text(
-                        "Sem pontos no período",
+                        text = stringResource(R.string.graph_no_points),
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                     else -> LineChart(
                         points = state.history,
-                        units = state.item?.units.orEmpty(),
                         modifier = Modifier.fillMaxSize(),
                     )
                 }
@@ -118,7 +132,12 @@ fun GraphScreen(container: AppContainer, itemId: String, onBack: () -> Unit) {
                 val values = state.history.mapNotNull { it.value.toDoubleOrNull() }
                 if (values.isNotEmpty()) {
                     Text(
-                        "min ${values.min().fmt()} · max ${values.max().fmt()} · avg ${values.average().fmt()}",
+                        text = stringResource(
+                            R.string.graph_stats,
+                            values.min().fmt(),
+                            values.max().fmt(),
+                            values.average().fmt(),
+                        ),
                         style = MaterialTheme.typography.bodySmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -129,7 +148,7 @@ fun GraphScreen(container: AppContainer, itemId: String, onBack: () -> Unit) {
 }
 
 @Composable
-private fun LineChart(points: List<ZbxHistoryPoint>, units: String, modifier: Modifier = Modifier) {
+private fun LineChart(points: List<ZbxHistoryPoint>, modifier: Modifier = Modifier) {
     val xy = points.mapNotNull { p ->
         val x = p.clock.toDoubleOrNull() ?: return@mapNotNull null
         val y = p.value.toDoubleOrNull() ?: return@mapNotNull null
@@ -137,7 +156,7 @@ private fun LineChart(points: List<ZbxHistoryPoint>, units: String, modifier: Mo
     }
     if (xy.size < 2) {
         Box(modifier, contentAlignment = Alignment.Center) {
-            Text("Pontos insuficientes", color = ZbxOnSurfaceMuted)
+            Text(stringResource(R.string.graph_few_points), color = ZbxOnSurfaceMuted)
         }
         return
     }
@@ -160,7 +179,6 @@ private fun LineChart(points: List<ZbxHistoryPoint>, units: String, modifier: Mo
         val w = size.width - leftPad - rightPad
         val h = size.height - topPad - bottomPad
 
-        // Horizontal gridlines + y labels
         val ySteps = 4
         val dashEffect = PathEffect.dashPathEffect(floatArrayOf(6f, 6f))
         for (i in 0..ySteps) {
@@ -190,7 +208,6 @@ private fun LineChart(points: List<ZbxHistoryPoint>, units: String, modifier: Mo
             }
         }
 
-        // X labels (start, middle, end)
         val xLabelTimes = listOf(minX, (minX + maxX) / 2.0, maxX)
         xLabelTimes.forEachIndexed { idx, t ->
             val frac = if (rangeX == 0.0) 0f else ((t - minX) / rangeX).toFloat()
@@ -215,7 +232,6 @@ private fun LineChart(points: List<ZbxHistoryPoint>, units: String, modifier: Mo
             }
         }
 
-        // Draw the line + filled area
         val path = Path()
         val fillPath = Path()
         xy.forEachIndexed { i, (x, y) ->

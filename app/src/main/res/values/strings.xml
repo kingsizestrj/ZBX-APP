@@ -2,4 +2,139 @@
     <string name="app_name">ZBX</string>
     <string name="notification_channel_problems_name">Novos incidentes</string>
     <string name="notification_channel_problems_desc">Alerta quando um novo problema aparece no Zabbix</string>
+    <string name="notif_new_problem">Novo problema</string>
+    <string name="notif_no_description">Sem descrição</string>
+
+    <!-- Generic -->
+    <string name="action_back">Voltar</string>
+    <string name="action_refresh">Atualizar</string>
+    <string name="action_settings">Configurações</string>
+    <string name="action_cancel">Cancelar</string>
+    <string name="action_filters">Filtros</string>
+    <string name="action_show_filters">Mostrar filtros</string>
+    <string name="action_hide_filters">Ocultar filtros</string>
+    <string name="loading">Carregando…</string>
+    <string name="state_now">agora</string>
+    <string name="state_minutes_ago">há %1$d min</string>
+    <string name="state_at_time">às %1$s</string>
+
+    <!-- Problems screen -->
+    <string name="problems_title">Problemas</string>
+    <string name="problems_summary">%1$d ativos · atualizado %2$s</string>
+    <string name="problems_empty">Nenhum problema ativo</string>
+    <string name="problems_error_generic">Falha ao buscar problemas</string>
+    <string name="problems_no_description">Sem descrição</string>
+    <string name="problems_offline_banner">Modo offline — última atualização %1$s</string>
+
+    <!-- Filters -->
+    <string name="filter_search_placeholder">Buscar por nome ou host</string>
+    <string name="filter_host_label">Host</string>
+    <string name="filter_tag_label">Tag</string>
+    <string name="filter_severity_label">Severidade</string>
+    <string name="filter_only_unacked">Não reconhecidos</string>
+    <string name="filter_include_suppressed">Incluir suprimidos</string>
+    <string name="filter_chip_ack">ACK</string>
+    <string name="filter_clear">Limpar filtros</string>
+    <string name="filter_all_severities">Todas</string>
+
+    <!-- Severity labels -->
+    <string name="severity_not_classified">Não classificado</string>
+    <string name="severity_information">Information</string>
+    <string name="severity_warning">Warning</string>
+    <string name="severity_average">Average</string>
+    <string name="severity_high">High</string>
+    <string name="severity_disaster">Disaster</string>
+
+    <!-- Problem detail -->
+    <string name="detail_title">Detalhe do incidente</string>
+    <string name="detail_host">Host: %1$s</string>
+    <string name="detail_started">Iniciado: %1$s</string>
+    <string name="detail_not_found">Não encontrado</string>
+    <string name="detail_action_ack">Reconhecer</string>
+    <string name="detail_action_ack_short">Ack</string>
+    <string name="detail_action_close">Fechar</string>
+    <string name="detail_action_comment">Comentar</string>
+    <string name="detail_section_tags">Tags</string>
+    <string name="detail_section_items">Itens da trigger (clique para abrir o gráfico)</string>
+    <string name="detail_section_history">Histórico</string>
+    <string name="detail_item_key">key: %1$s</string>
+    <string name="detail_item_current">atual: %1$s</string>
+    <string name="detail_dialog_ack_title">Reconhecer incidente</string>
+    <string name="detail_dialog_close_title">Fechar incidente</string>
+    <string name="detail_dialog_comment_title">Adicionar comentário</string>
+    <string name="detail_dialog_message_required">Mensagem</string>
+    <string name="detail_dialog_message_optional">Mensagem (opcional)</string>
+    <string name="detail_confirm_ack">Reconhecer</string>
+    <string name="detail_confirm_close">Fechar</string>
+    <string name="detail_confirm_comment">Enviar</string>
+    <string name="detail_result_acked">Reconhecido</string>
+    <string name="detail_result_closed">Encerrado</string>
+    <string name="detail_result_commented">Comentário enviado</string>
+    <string name="detail_action_failed">Falha ao executar ação</string>
+    <string name="detail_history_closed">fechou</string>
+    <string name="detail_history_ack">ack</string>
+    <string name="detail_history_message">mensagem</string>
+    <string name="detail_history_severity">alterou severidade</string>
+    <string name="detail_history_unacked">desfez ack</string>
+    <string name="detail_history_suppressed">suprimiu</string>
+
+    <!-- Graph screen -->
+    <string name="graph_title">Gráfico</string>
+    <string name="graph_current_value">atual: %1$s</string>
+    <string name="graph_no_points">Sem pontos no período</string>
+    <string name="graph_few_points">Pontos insuficientes</string>
+    <string name="graph_not_numeric">Este item não é numérico — sem gráfico disponível.</string>
+    <string name="graph_stats">min %1$s · max %2$s · avg %3$s</string>
+    <string name="graph_item_not_found">Item não encontrado</string>
+    <string name="graph_load_failed">Falha ao carregar histórico</string>
+    <string name="graph_range_1h">1h</string>
+    <string name="graph_range_6h">6h</string>
+    <string name="graph_range_24h">24h</string>
+    <string name="graph_range_7d">7d</string>
+
+    <!-- Login -->
+    <string name="login_brand">ZBX</string>
+    <string name="login_tagline">Conecte-se ao seu Zabbix</string>
+    <string name="login_url_label">URL do servidor (ex: https://zbx.empresa.com)</string>
+    <string name="login_user_label">Usuário</string>
+    <string name="login_password_label">Senha</string>
+    <string name="login_show">Mostrar</string>
+    <string name="login_hide">Ocultar</string>
+    <string name="login_submit">Entrar</string>
+    <string name="login_fill_fields">Preencha URL, usuário e senha</string>
+    <string name="login_invalid_url">URL inválida</string>
+    <string name="login_connect_failed">Falha ao conectar</string>
+    <string name="login_help">A versão da API é detectada automaticamente. Para Zabbix 7.0+ usamos Bearer Token; para versões anteriores, auth no corpo da requisição.</string>
+
+    <!-- Settings -->
+    <string name="settings_title">Configurações</string>
+    <string name="settings_section_server">Servidor</string>
+    <string name="settings_auth_bearer">Autenticação: Bearer (Zabbix 7.0+)</string>
+    <string name="settings_auth_inbody">Autenticação: Auth in-body (≤6.4)</string>
+    <string name="settings_min_severity_title">Severidade mínima para notificações</string>
+    <string name="settings_min_severity_desc">Apenas problemas com severidade igual ou maior geram push.</string>
+    <string name="settings_poll_title">Intervalo de verificação em background</string>
+    <string name="settings_poll_desc">Mínimo do Android é 15 min. Mais frequente = mais bateria.</string>
+    <string name="settings_poll_minutes">%1$dm</string>
+    <string name="settings_suppressed_title">Problemas suprimidos</string>
+    <string name="settings_suppressed_desc">Quando ativado, problemas em manutenção/suprimidos também aparecem na lista e geram notificações.</string>
+    <string name="settings_logout">Sair (apaga credenciais salvas)</string>
+    <string name="settings_version">ZBX • v0.1.0</string>
+    <string name="settings_theme_title">Tema</string>
+    <string name="settings_theme_desc">Escolha como o app deve seguir o tema do sistema.</string>
+    <string name="settings_theme_system">Seguir sistema</string>
+    <string name="settings_theme_light">Claro</string>
+    <string name="settings_theme_dark">Escuro</string>
+    <string name="settings_dynamic_color_title">Cores dinâmicas (Android 12+)</string>
+    <string name="settings_dynamic_color_desc">Usa o tema Material You do dispositivo quando disponível.</string>
+    <string name="settings_biometric_title">Exigir biometria ao abrir o app</string>
+    <string name="settings_biometric_desc">Solicita impressão digital ou reconhecimento facial antes de mostrar os problemas.</string>
+    <string name="settings_biometric_unavailable">Biometria indisponível neste dispositivo.</string>
+
+    <!-- Biometric -->
+    <string name="biometric_prompt_title">Desbloqueie o ZBX</string>
+    <string name="biometric_prompt_subtitle">Use sua biometria para continuar</string>
+    <string name="biometric_prompt_negative">Cancelar</string>
+    <string name="biometric_retry">Tentar novamente</string>
+    <string name="biometric_locked">Autenticação necessária</string>
 </resources>
