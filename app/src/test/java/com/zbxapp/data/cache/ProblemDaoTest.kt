@@ -89,7 +89,7 @@ class ProblemDaoTest {
     // ---------------------------------------------------------------------
 
     @Test
-    fun `toEntity captures host name and flattens tags`() {
+    fun `toEntity captures host name and round-trips tags`() {
         val p = ZbxProblem(
             eventid = "10",
             name = "Disk space low",
@@ -108,7 +108,13 @@ class ProblemDaoTest {
         assertEquals(1700L, e.clock)
         assertEquals("host1.prod", e.hostName)
         assertEquals("free=2%", e.opdata)
-        assertEquals("env=prod;team=sre", e.tagsFlat)
+        // Verify round-trip rather than the opaque encoded format.
+        val roundTrip = e.toDomain()
+        assertEquals(2, roundTrip.tags.size)
+        assertEquals("env", roundTrip.tags[0].tag)
+        assertEquals("prod", roundTrip.tags[0].value)
+        assertEquals("team", roundTrip.tags[1].tag)
+        assertEquals("sre", roundTrip.tags[1].value)
     }
 
     @Test
@@ -137,18 +143,19 @@ class ProblemDaoTest {
 
     @Test
     fun `toDomain reconstructs problem with a single host`() {
-        val e = ProblemEntity(
+        // Build entity via toEntity() so tagsFlat is properly encoded.
+        val source = ZbxProblem(
             eventid = "20",
             name = "n",
             severity = "2",
-            clock = 1800L,
+            clock = "1800",
             acknowledged = "1",
             suppressed = "0",
-            hostName = "myhost",
             opdata = "x",
-            tagsFlat = "k=v;solo",
+            hosts = listOf(ZbxHost(hostid = "", host = "myhost", name = "myhost")),
+            tags = listOf(ZbxTag(tag = "k", value = "v"), ZbxTag(tag = "solo", value = "")),
         )
-        val d = e.toDomain()
+        val d = source.toEntity().toDomain()
         assertEquals("20", d.eventid)
         assertEquals("1800", d.clock)
         assertEquals(1, d.hosts.size)
@@ -171,15 +178,17 @@ class ProblemDaoTest {
     }
 
     @Test
-    fun `tags round-trip survives encoded separators`() {
+    fun `tags round-trip survives tags containing separator characters`() {
         val p = ZbxProblem(
             eventid = "1",
             tags = listOf(ZbxTag(tag = "with;sep", value = "and=eq"), ZbxTag(tag = "k", value = "v")),
         )
         val round = p.toEntity().toDomain()
-        // The producer sanitizes separators to spaces. Both tags should be present
-        // and the second one should match exactly.
+        // Base64 encoding preserves all characters including ; and = in tag/value.
         assertEquals(2, round.tags.size)
+        val withSep = round.tags.firstOrNull { it.tag == "with;sep" }
+        assertNotNull("tag 'with;sep' must survive round-trip", withSep)
+        assertEquals("and=eq", withSep!!.value)
         val k = round.tags.firstOrNull { it.tag == "k" }
         assertNotNull(k)
         assertEquals("v", k!!.value)

@@ -1,10 +1,10 @@
 package com.zbxapp.data.cache
 
-import android.util.Base64
 import androidx.room.Entity
 import androidx.room.PrimaryKey
 import com.zbxapp.data.api.models.ZbxProblem
 import com.zbxapp.data.api.models.ZbxTag
+import java.util.Base64 as JBase64
 
 /**
  * Cached projection of [ZbxProblem] holding only the fields the list row and
@@ -31,7 +31,8 @@ data class ProblemEntity(
 
 private const val TAGS_SEPARATOR = ";"
 private const val TAG_KV_SEPARATOR = "="
-private const val B64_FLAGS = Base64.NO_WRAP or Base64.NO_PADDING or Base64.URL_SAFE
+private val B64_ENCODER: JBase64.Encoder = JBase64.getUrlEncoder().withoutPadding()
+private val B64_DECODER: JBase64.Decoder = JBase64.getUrlDecoder()
 
 fun ZbxProblem.toEntity(): ProblemEntity = ProblemEntity(
     eventid = eventid,
@@ -62,11 +63,11 @@ fun ProblemEntity.toDomain(): ZbxProblem = ZbxProblem(
 )
 
 private fun b64Encode(value: String): String =
-    Base64.encodeToString(value.toByteArray(Charsets.UTF_8), B64_FLAGS)
+    B64_ENCODER.encodeToString(value.toByteArray(Charsets.UTF_8))
 
 private fun b64Decode(value: String): String = try {
-    String(Base64.decode(value, B64_FLAGS), Charsets.UTF_8)
-} catch (_: IllegalArgumentException) {
+    String(B64_DECODER.decode(value), Charsets.UTF_8)
+} catch (_: Exception) {
     ""
 }
 
