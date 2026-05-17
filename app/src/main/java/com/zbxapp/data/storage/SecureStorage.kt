@@ -88,6 +88,11 @@ class SecureStorage(context: Context) {
         refresh()
     }
 
+    fun saveIncludeSuppressed(value: Boolean) {
+        prefs.edit().putBoolean(KEY_INCLUDE_SUPPRESSED, value).apply()
+        refresh()
+    }
+
     private fun refresh() {
         _state.value = loadState()
     }
@@ -100,6 +105,7 @@ class SecureStorage(context: Context) {
         val useBearer = prefs.getBoolean(KEY_USE_BEARER, true)
         val minSev = prefs.getInt(KEY_MIN_SEVERITY, 0)
         val pollMin = prefs.getInt(KEY_POLL_MIN, 15)
+        val includeSuppressed = prefs.getBoolean(KEY_INCLUDE_SUPPRESSED, false)
         val server = baseUrl?.let { ServerConfig(it, useBearer) }
         return AuthState(
             server = server,
@@ -108,6 +114,7 @@ class SecureStorage(context: Context) {
             token = token,
             minSeverity = minSev,
             pollIntervalMinutes = pollMin,
+            includeSuppressed = includeSuppressed,
         )
     }
 
@@ -121,6 +128,7 @@ class SecureStorage(context: Context) {
         private const val KEY_LAST_EVENT = "last_event_id"
         private const val KEY_MIN_SEVERITY = "min_severity"
         private const val KEY_POLL_MIN = "poll_interval_min"
+        private const val KEY_INCLUDE_SUPPRESSED = "include_suppressed"
     }
 }
 
@@ -131,6 +139,7 @@ data class AuthState(
     val token: String?,
     val minSeverity: Int,
     val pollIntervalMinutes: Int,
+    val includeSuppressed: Boolean = false,
 ) {
     val isConfigured: Boolean get() = server != null && !username.isNullOrBlank() && !password.isNullOrBlank()
     val isAuthenticated: Boolean get() = isConfigured && !token.isNullOrBlank()

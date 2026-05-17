@@ -6,17 +6,26 @@ import com.zbxapp.data.api.models.ZbxHistoryPoint
 import com.zbxapp.data.api.models.ZbxItem
 import com.zbxapp.data.api.models.ZbxProblem
 import com.zbxapp.data.api.models.ZbxTrigger
+import com.zbxapp.data.cache.ProblemDao
+import com.zbxapp.data.cache.toDomain
+import com.zbxapp.data.cache.toEntity
 import com.zbxapp.data.storage.SecureStorage
 import com.zbxapp.data.storage.ServerConfig
+import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.StateFlow
+import kotlinx.coroutines.flow.map
 
 /**
  * Façade over [ZabbixClient] and [SecureStorage]. Re-authenticates transparently
  * when the stored token is rejected (Zabbix codes -32602 / -32500 for invalid auth).
+ *
+ * Also write-through caches the latest fetched problems list into Room so the UI
+ * can render the last-known state immediately on cold start / flaky network.
  */
 class ZabbixRepository(
     private val client: ZabbixClient,
     private val storage: SecureStorage,
+    private val problemDao: ProblemDao,
 ) {
 
     val authState: StateFlow<com.zbxapp.data.storage.AuthState> = storage.state
@@ -43,9 +52,33 @@ class ZabbixRepository(
         storage.clearAll()
     }
 
-    suspend fun fetchProblems(minSeverity: Int? = null, limit: Int = 200): Result<List<ZbxProblem>> = call { server, token ->
-        client.getProblems(server, token, minSeverity ?: storage.state.value.minSeverity, limit)
+    suspend fun fetchProblems(
+        minSeverity: Int? = null,
+        limit: Int = 200,
+        includeSuppressed: Boolean? = null,
+    ): Result<List<ZbxProblem>> = call { server, token ->
+        val state = storage.state.value
+        val problems = client.getProblems(
+            server = server,
+            token = token,
+            minSeverity = minSeverity ?: state.minSeverity,
+            limit = limit,
+            includeSuppressed = includeSuppressed ?: state.includeSuppressed,
+        )
+        // Write-through cache so the next cold start has something to show.
+        problemDao.replaceAll(problems.map { it.toEntity() })
+        problems
     }
+
+    /**
+     * Observe the cached problems list. UI can subscribe to this and render the
+     * last-known list immediately, while [fetchProblems] runs in the background.
+     *
+     * TODO(integration): ProblemsViewModel should switch to observing this flow as
+     * its source of truth and trigger fetchProblems() as a refresh action.
+     */
+    fun observeCachedProblems(): Flow<List<ZbxProblem>> =
+        problemDao.observeAll().map { rows -> rows.map { it.toDomain() } }
 
     suspend fun fetchTriggers(triggerIds: List<String>): Result<List<ZbxTrigger>> = call { server, token ->
         client.getTriggers(server, token, triggerIds)
@@ -66,7 +99,6 @@ class ZabbixRepository(
     /** action bitmask: 1=close, 2=ack, 4=add message */
     suspend fun acknowledge(eventId: String, action: Int, message: String? = null): Result<Unit> = call { server, token ->
         client.acknowledgeEvent(server, token, eventId, action, message)
-        Unit
     }
 
     /**

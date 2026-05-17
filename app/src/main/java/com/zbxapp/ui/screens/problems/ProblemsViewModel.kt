@@ -15,6 +15,7 @@ data class ProblemsUiState(
     val problems: List<ZbxProblem> = emptyList(),
     val minSeverityFilter: Int = 0,
     val onlyUnacked: Boolean = false,
+    val includeSuppressed: Boolean = false,
     val error: String? = null,
     val lastUpdatedMs: Long = 0L,
 )
@@ -25,7 +26,10 @@ class ProblemsViewModel(
 ) : ViewModel() {
 
     private val _state = MutableStateFlow(
-        ProblemsUiState(minSeverityFilter = storage.state.value.minSeverity),
+        ProblemsUiState(
+            minSeverityFilter = storage.state.value.minSeverity,
+            includeSuppressed = storage.state.value.includeSuppressed,
+        ),
     )
     val state: StateFlow<ProblemsUiState> = _state
 
@@ -45,6 +49,12 @@ class ProblemsViewModel(
         _state.value = _state.value.copy(onlyUnacked = value)
     }
 
+    fun setIncludeSuppressed(value: Boolean) {
+        _state.value = _state.value.copy(includeSuppressed = value)
+        storage.saveIncludeSuppressed(value)
+        load(initial = false)
+    }
+
     fun visibleProblems(): List<ZbxProblem> {
         val s = _state.value
         return s.problems.filter { p ->
@@ -60,7 +70,10 @@ class ProblemsViewModel(
             error = null,
         )
         viewModelScope.launch {
-            val result = repository.fetchProblems(minSeverity = _state.value.minSeverityFilter)
+            val result = repository.fetchProblems(
+                minSeverity = _state.value.minSeverityFilter,
+                includeSuppressed = _state.value.includeSuppressed,
+            )
             result.onSuccess { problems ->
                 _state.value = _state.value.copy(
                     isLoading = false,

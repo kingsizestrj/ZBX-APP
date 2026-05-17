@@ -126,6 +126,27 @@ fun SettingsScreen(container: AppContainer, onBack: () -> Unit, onLoggedOut: () 
 
             HorizontalDivider()
 
+            Column {
+                Text("Problemas suprimidos", style = MaterialTheme.typography.titleSmall)
+                Text(
+                    "Quando ativado, problemas em manutenção/suprimidos também aparecem na lista e geram notificações.",
+                    style = MaterialTheme.typography.bodySmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                Row(
+                    modifier = Modifier.fillMaxWidth().padding(top = 8.dp),
+                    horizontalArrangement = Arrangement.spacedBy(6.dp),
+                ) {
+                    FilterChip(
+                        selected = state.includeSuppressed,
+                        onClick = { container.storage.saveIncludeSuppressed(!state.includeSuppressed) },
+                        label = { Text("Inclui suprimidos") },
+                    )
+                }
+            }
+
+            HorizontalDivider()
+
             Button(
                 onClick = {
                     scope.launch {

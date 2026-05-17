@@ -2,6 +2,7 @@ package com.zbxapp.ui.screens.problems
 
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -16,6 +17,7 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Check
@@ -101,8 +103,10 @@ fun ProblemsScreen(
             FilterRow(
                 minSeverity = state.minSeverityFilter,
                 onlyUnacked = state.onlyUnacked,
+                includeSuppressed = state.includeSuppressed,
                 onSeverityChange = vm::setSeverityFilter,
                 onUnackedToggle = vm::setOnlyUnacked,
+                onIncludeSuppressedToggle = vm::setIncludeSuppressed,
             )
 
             state.error?.let { err ->
@@ -162,14 +166,18 @@ fun ProblemsScreen(
 private fun FilterRow(
     minSeverity: Int,
     onlyUnacked: Boolean,
+    includeSuppressed: Boolean,
     onSeverityChange: (Int) -> Unit,
     onUnackedToggle: (Boolean) -> Unit,
+    onIncludeSuppressedToggle: (Boolean) -> Unit,
 ) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
+            .horizontalScroll(rememberScrollState())
             .padding(horizontal = 12.dp, vertical = 8.dp),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
+        verticalAlignment = Alignment.CenterVertically,
     ) {
         listOf(
             0 to "Todas",
@@ -187,6 +195,11 @@ private fun FilterRow(
             selected = onlyUnacked,
             onClick = { onUnackedToggle(!onlyUnacked) },
             label = { Text("Não ack") },
+        )
+        FilterChip(
+            selected = includeSuppressed,
+            onClick = { onIncludeSuppressedToggle(!includeSuppressed) },
+            label = { Text("Inclui suprimidos") },
         )
     }
 }

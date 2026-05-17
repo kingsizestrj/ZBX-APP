@@ -1,6 +1,5 @@
 package com.zbxapp.data.api
 
-import com.zbxapp.data.api.models.AcknowledgeResponse
 import com.zbxapp.data.api.models.ZbxHistoryPoint
 import com.zbxapp.data.api.models.ZbxItem
 import com.zbxapp.data.api.models.ZbxProblem
@@ -55,6 +54,7 @@ class ZabbixClient(
         minSeverity: Int = 0,
         limit: Int = 200,
         sinceClock: Long? = null,
+        includeSuppressed: Boolean = false,
     ): List<ZbxProblem> {
         val params = buildJsonObject {
             put("output", JsonPrimitive("extend"))
@@ -70,6 +70,7 @@ class ZabbixClient(
                     for (s in minSeverity..5) add(JsonPrimitive(s))
                 })
             }
+            if (!includeSuppressed) put("suppressed", JsonPrimitive(false))
             if (sinceClock != null) put("time_from", JsonPrimitive(sinceClock))
         }
         return call(server, "problem.get", params, token, ListSerializer(ZbxProblem.serializer()))
@@ -131,13 +132,14 @@ class ZabbixClient(
         eventId: String,
         action: Int,
         message: String? = null,
-    ): AcknowledgeResponse {
+    ) {
         val params = buildJsonObject {
             put("eventids", JsonPrimitive(eventId))
             put("action", JsonPrimitive(action))
             if (message != null) put("message", JsonPrimitive(message))
         }
-        return call(server, "event.acknowledge", params, token, AcknowledgeResponse.serializer())
+        // We don't consume the returned eventids; parseEnvelope surfaces any JSON-RPC error.
+        parseEnvelope(rawCall(server, "event.acknowledge", params, token))
     }
 
     private suspend fun <T> call(

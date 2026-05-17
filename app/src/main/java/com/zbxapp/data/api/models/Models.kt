@@ -82,8 +82,3 @@ data class ZbxHistoryPoint(
     val value: String = "0",
     val ns: String = "0",
 )
-
-@Serializable
-data class AcknowledgeResponse(
-    val eventids: List<String> = emptyList(),
-)

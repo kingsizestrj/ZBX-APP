@@ -32,7 +32,8 @@ class ProblemsPollingWorker(
 
         if (newProblems.isNotEmpty()) {
             val filtered = newProblems.filter {
-                (it.severity.toIntOrNull() ?: 0) >= state.minSeverity
+                (it.severity.toIntOrNull() ?: 0) >= state.minSeverity &&
+                    (state.includeSuppressed || it.suppressed != "1")
             }
             NotificationHelper.notifyNewProblems(applicationContext, filtered)
         }
